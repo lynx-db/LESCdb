@@ -1,0 +1,14 @@
+[workspace]
+authors = ["misilelab <misileminecord@gmail.com>", "GonGe1018 <chaeho1234@naver.com>"]
+channels = ["conda-forge", "pytorch"]
+name = "LESCdb"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+faiss-gpu = "==1.9.0"
+lmdbm = "==0.0.6"
+msgpack-python = "==1.1.1"
+pytorch = "==2.7.1"
