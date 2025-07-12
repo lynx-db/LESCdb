@@ -1,0 +1,3 @@
+[submodule "distance_preservation_encoder"]
+	path = distance_preservation_encoder
+	url = https://github.com/lynx-db/distance-preservation-encoder.git

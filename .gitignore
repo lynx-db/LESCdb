@@ -2,6 +2,7 @@
 *.db
 *.faiss
 .python-version
+model.pth
 
 # Python.gitignore by ignofierplus
 __pycache__/
