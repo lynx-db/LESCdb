@@ -1,5 +1,6 @@
 # Custom
-*.lmdb
+*.db
+*.faiss
 .python-version
 
 # Python.gitignore by ignofierplus
