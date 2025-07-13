@@ -1,4 +1,4 @@
-from typing import final, Dict, Tuple, Optional, Any
+from typing import final, Dict, Tuple, Optional, Any, Union
 
 from numpy import float32
 from torch import Tensor
@@ -10,6 +10,9 @@ from distance_preservation_encoder.model import DPEncoder
 from distance_preservation_encoder.loss import DPLoss
 from btree_db import BTreeDatabase
 
+# Define a type for our database values which can be either a list of floats or a dict with embedding and text
+DBValue = Union[list[float], Dict[str, Any]]
+
 @final
 class Database:
   def __init__(self, 
@@ -20,8 +23,8 @@ class Database:
                hidden_dims: list[int] = [768]):
     self.path = path
     # Replace LMDB with BTreeDatabase
-    self.database: BTreeDatabase[str, list[float]] = BTreeDatabase[str, list[float]](path=f"{path}_main")
-    self.staging: BTreeDatabase[str, list[float]] = BTreeDatabase[str, list[float]](path=f"{path}_staging")
+    self.database: BTreeDatabase[str, DBValue] = BTreeDatabase[str, DBValue](path=f"{path}_main")
+    self.staging: BTreeDatabase[str, DBValue] = BTreeDatabase[str, DBValue](path=f"{path}_staging")
     
     # GPU setup
     self.use_gpu = use_gpu
@@ -55,12 +58,12 @@ class Database:
     
     self._load()
 
-  def _insert_db(self, db: BTreeDatabase[str, list[float]], key: list[float], value: list[float]):
+  def _insert_db(self, db: BTreeDatabase[str, DBValue], key: list[float], value: DBValue):
     # Convert list to string for B-tree key
     key_str = str(key)
     db.insert(key_str, value)
 
-  def _select_db(self, db: BTreeDatabase[str, list[float]], key: list[float]) -> list[float]:
+  def _select_db(self, db: BTreeDatabase[str, DBValue], key: list[float]) -> DBValue:
     # Convert list to string for B-tree key
     key_str = str(key)
     result = db.search(key_str)
@@ -68,7 +71,7 @@ class Database:
       raise KeyError(f"Key not found: {key}")
     return result
 
-  def insert_staging(self, key: list[float], value: list[float]):
+  def insert_staging(self, key: list[float], value: DBValue):
     self._insert_db(self.staging, key, value)
 
   def _train(self, original: Tensor, data: Tensor) -> Tensor:
@@ -184,13 +187,26 @@ class Database:
         if self.latent_dim is None:
           try:
             # Try to infer from saved model
-            temp_model = torch.load(model_path, map_location=self.device)
-            # Check if it's a state dict or full model
-            if isinstance(temp_model, dict) and "encoder.0.weight" in temp_model:
-              # Get output dimension from the last layer weight
-              last_layer_key = [k for k in temp_model.keys() if "weight" in k][-1]
-              self.latent_dim = temp_model[last_layer_key].shape[0]
-              print(f"Inferred latent dimension from model: {self.latent_dim}")
+            state_dict = torch.load(model_path, map_location=self.device)
+            # Extract dimensions from the model
+            if isinstance(state_dict, dict) and "encoder.0.weight" in state_dict:
+              # Get input dimension from the first layer weight
+              model_input_dim = state_dict["encoder.0.weight"].shape[1]
+              # Find the last layer's weight
+              last_layer_keys = [k for k in state_dict.keys() if "weight" in k and "encoder" in k]
+              last_layer_keys.sort(key=lambda x: int(x.split('.')[1]))
+              last_layer_key = last_layer_keys[-1]
+              model_latent_dim = state_dict[last_layer_key].shape[0]
+              
+              # Check if model dimensions match our data
+              if self.input_dim != model_input_dim:
+                print(f"Warning: Model input dimension ({model_input_dim}) doesn't match data dimension ({self.input_dim})")
+                print("Using data dimensions instead of loading the model.")
+                self.latent_dim = self.input_dim  # Use same dimension for output
+                return data  # Return data as is without processing through model
+              else:
+                self.latent_dim = model_latent_dim
+                print(f"Inferred latent dimension from model: {self.latent_dim}")
             else:
               # Default to a reasonable size
               self.latent_dim = min(512, max(128, self.input_dim // 3))
@@ -204,8 +220,15 @@ class Database:
         # Initialize and load model
         print(f"Using dimensions - Input: {self.input_dim}, Hidden: {self.hidden_dims}, Latent: {self.latent_dim}")
         self.model = DPEncoder(self.input_dim, self.hidden_dims, self.latent_dim).to(self.device)
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
-        print(f"Model loaded from {model_path}")
+        
+        try:
+          self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+          print(f"Model loaded from {model_path}")
+        except RuntimeError as e:
+          print(f"Error loading model: {e}")
+          print("Using data without model processing.")
+          self.model = None
+          return data  # Return data as is without processing through model
       else:
         # No model available, ensure dimensions are set and return the data as is
         if self.input_dim is None:
@@ -242,6 +265,7 @@ class Database:
     # Gather all data from staging as the actual data to build the index
     all_keys = []
     all_values = []
+    all_original_data = []
     
     # Get all keys from staging using a custom approach
     staging_keys = self._get_staging_keys()
@@ -250,7 +274,14 @@ class Database:
       value = self.staging.search(key_str)
       if value is not None:
         all_keys.append(eval(key_str))  # Convert string back to list[float]
-        all_values.append(value)
+        
+        # Handle both old format (list[float]) and new format (dict with embedding and text)
+        if isinstance(value, dict) and "embedding" in value:
+          all_values.append(value["embedding"])
+          all_original_data.append(value)  # Store the complete dict
+        else:
+          all_values.append(value)  # Old format - value is the embedding
+          all_original_data.append(value)  # Store the raw value for backward compatibility
     
     if not all_values:
       print("Warning: No data to build the database")
@@ -287,7 +318,7 @@ class Database:
       return
       
     for i in range(le):
-      current_data: list[float] = data[i].tolist() # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+      current_data = all_original_data[i]  # Use the original data (with text if available)
       current_eval: list[float] = eval_result[i].tolist() # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
       self._insert_db(self.database, current_eval, current_data)
       
@@ -303,8 +334,8 @@ class Database:
     
     self.save()
 
-  def search(self, value: list[float], limit: int = 10) -> list[tuple[float, list[float]]]:
-    results: list[tuple[float, list[float]]] = []
+  def search(self, value: list[float], limit: int = 10) -> list[tuple[float, DBValue]]:
+    results: list[tuple[float, DBValue]] = []
     evaluation = self._evaluate(Tensor([value]))
     
     # Ensure proper shape for FAISS search

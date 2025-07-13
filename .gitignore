@@ -3,6 +3,8 @@
 *.faiss
 .python-version
 model.pth
+*.jsonl
+.infisical.json
 
 # Python.gitignore by ignofierplus
 __pycache__/
