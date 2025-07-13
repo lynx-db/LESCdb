@@ -301,6 +301,10 @@ class BTreeDatabase(Generic[K, V]):
             except (pickle.PickleError, EOFError):
                 print(f"Error loading database from {db_file}, creating new database")
                 self.btree = BTree(order=self.btree.order)
+  
+    def clear(self) -> None:
+        """Remove all entries from the database."""
+        self.btree = BTree(order=self.btree.order)
 
 # Example usage
 if __name__ == "__main__":

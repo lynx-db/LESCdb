@@ -332,6 +332,7 @@ class Database:
       
       self.evaluations.append(current_eval)
     
+    self.staging.clear()
     self.save()
 
   def search(self, value: list[float], limit: int = 10) -> list[tuple[float, DBValue]]:
@@ -357,12 +358,9 @@ class Database:
       # Skip invalid indices (that might occur if the index is not fully built)
       if indice < 0 or indice >= len(self.evaluations):
         continue
-      try:
-        result_value = self._select_db(self.database, self.evaluations[indice]) # pyright: ignore[reportUnknownArgumentType]
-        results.append((float(distance), result_value))
-      except KeyError:
-        # Skip entries that don't exist in the database
-        continue
+      result_value = self._select_db(self.database, self.evaluations[indice]) # pyright: ignore[reportUnknownArgumentType]
+      results.append((float(distance), result_value))
+    print(results)
     return results
   
   def save(self):
@@ -406,7 +404,7 @@ class Database:
       
       # Find the maximum index to determine the number of evaluations
       max_index = -1
-      for i in range(10000):  # Reasonable upper bound
+      for i in range(100000000):  # Reasonable upper bound
         if evals_db.search(str(i)) is None:
           max_index = i - 1
           break

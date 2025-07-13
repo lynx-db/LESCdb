@@ -5,6 +5,7 @@
 model.pth
 *.jsonl
 .infisical.json
+generate_embedding.py
 
 # Python.gitignore by ignofierplus
 __pycache__/
