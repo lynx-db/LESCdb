@@ -13,7 +13,7 @@ openai = ">=1.95.1,<2"
 scikit-learn = ">=1.7.0,<2"
 datasets = ">=3.6.0,<4"
 pytorch = ">=2.7.1,<3"
-faiss-cpu = ">=1.9.0,<2"
+# faiss-cpu = ">=1.9.0,<2"
 
 [pypi-dependencies]
 cohere = "~=5.16.1"
@@ -23,12 +23,13 @@ cohere = "~=5.16.1"
 
 [target.linux-64.dependencies]
 # GPU dependencies are optional, enable via environment variables or manually install
-# faiss-gpu = ">=1.9.0,<2"
+faiss-gpu = ">=1.9.0,<2"
 # pytorch-cuda = "<12"
 
 [target.win-64.dependencies]
 # GPU dependencies are optional, enable via environment variables or manually install
-# faiss-gpu = ">=1.9.0,<2"
+faiss-gpu = ">=1.9.0,<2"
 # pytorch-cuda = "<12"
 
-
+[target.osx-64.dependencies]
+faiss = ">=1.9.0,<2"  # macOS does not support GPU, use CPU version
