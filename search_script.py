@@ -22,6 +22,49 @@ except ImportError:
     load_dataset = None
     hf_datasets_available = False
 
+def ensure_embedding_is_float_list(embedding):
+    """
+    Ensure the embedding is a list of floats.
+    
+    Args:
+        embedding: The embedding, which could be a string, list, or other format
+        
+    Returns:
+        A list of floats
+    """
+    if isinstance(embedding, str):
+        # Try to parse the string as a JSON array
+        try:
+            embedding = json.loads(embedding)
+        except json.JSONDecodeError:
+            # If it's not valid JSON, try to parse it as a space-separated string
+            try:
+                embedding = [float(x) for x in embedding.strip('[]').split()]
+            except ValueError:
+                # If that fails, try to parse it as a comma-separated string
+                try:
+                    embedding = [float(x) for x in embedding.strip('[]').split(',')]
+                except ValueError:
+                    print(f"Warning: Could not parse embedding string: {embedding[:50]}...")
+                    return None
+    
+    # Convert numpy arrays to lists
+    if isinstance(embedding, np.ndarray):
+        embedding = embedding.tolist()
+    
+    # Ensure all elements are floats
+    if isinstance(embedding, list):
+        try:
+            embedding = [float(x) for x in embedding]
+        except (ValueError, TypeError):
+            print(f"Warning: Could not convert all embedding elements to float")
+            return None
+    else:
+        print(f"Warning: Embedding is not a list or string: {type(embedding)}")
+        return None
+        
+    return embedding
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Search procedure using Cohere multilingual-22-12')
     parser.add_argument('--query', type=str, required=True, help='Natural language query text')
@@ -118,7 +161,9 @@ def extract_text_from_result(result):
 def get_embedding_from_result(result):
     """Extract embedding from result data which could be a dict or just an embedding"""
     if isinstance(result, dict) and "embedding" in result:
-        return result["embedding"]
+        # Convert embedding to float list if it's a string
+        embedding = ensure_embedding_is_float_list(result["embedding"])
+        return embedding if embedding is not None else result["embedding"]
     else:
         # For backwards compatibility with old data format
         return result
@@ -138,7 +183,13 @@ def load_jsonl_embeddings(file_path):
             try:
                 data = json.loads(line)
                 if 'embedding' in data:
-                    embeddings.append(data['embedding'])
+                    # Convert embedding to float list if it's a string
+                    embedding = ensure_embedding_is_float_list(data['embedding'])
+                    if embedding is None:
+                        print(f"Warning: Could not process embedding, skipping")
+                        continue
+                    
+                    embeddings.append(embedding)
                     
                     # Also store text if available
                     if 'text' in data:
@@ -189,7 +240,11 @@ def load_huggingface_embeddings(dataset_name, config_name=None, split="train",
                 if embedding_column not in item:
                     continue
                 
-                embedding = item[embedding_column]
+                # Convert embedding to float list if it's a string
+                embedding = ensure_embedding_is_float_list(item[embedding_column])
+                if embedding is None:
+                    print(f"Warning: Could not process embedding, skipping")
+                    continue
                 
                 # Extract the text (if available)
                 text = ""
@@ -344,6 +399,12 @@ def main():
         print("Failed to generate embedding. Exiting.")
         return
     
+    # Ensure embedding is a list of floats
+    embedding = ensure_embedding_is_float_list(embedding)
+    if embedding is None:
+        print("Failed to process embedding. Exiting.")
+        return
+    
     # Step 3: Search using Database (let the database handle processing)
     print(f"Searching with {args.search_type} similarity...")
     
@@ -368,7 +429,7 @@ def main():
         # This is a simplified approach - in a real system, you'd want to optimize this
         # by implementing cosine similarity directly in the search method
         # Ensure embedding is a list of floats
-        embedding_floats: list[float] = [float(x) for x in embedding]
+        embedding_floats = embedding  # Already converted to list of floats above
         results = db.search(embedding_floats, limit=args.limit)
         
         # Convert results to vectors for cosine similarity
@@ -394,7 +455,7 @@ def main():
     else:
         # L2 distance search (directly using the Database implementation)
         # Ensure embedding is a list of floats
-        embedding_list: list[float] = [float(x) for x in embedding]
+        embedding_list = embedding  # Already converted to list of floats above
         results = db.search(embedding_list, limit=args.limit)
         
         # Calculate database search time

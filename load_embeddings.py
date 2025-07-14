@@ -56,6 +56,49 @@ def get_model_dimensions(model_path):
     
     return None, None
 
+def ensure_embedding_is_float_list(embedding):
+    """
+    Ensure the embedding is a list of floats.
+    
+    Args:
+        embedding: The embedding, which could be a string, list, or other format
+        
+    Returns:
+        A list of floats
+    """
+    if isinstance(embedding, str):
+        # Try to parse the string as a JSON array
+        try:
+            embedding = json.loads(embedding)
+        except json.JSONDecodeError:
+            # If it's not valid JSON, try to parse it as a space-separated string
+            try:
+                embedding = [float(x) for x in embedding.strip('[]').split()]
+            except ValueError:
+                # If that fails, try to parse it as a comma-separated string
+                try:
+                    embedding = [float(x) for x in embedding.strip('[]').split(',')]
+                except ValueError:
+                    print(f"Warning: Could not parse embedding string: {embedding[:50]}...")
+                    return None
+    
+    # Convert numpy arrays to lists
+    if isinstance(embedding, np.ndarray):
+        embedding = embedding.tolist()
+    
+    # Ensure all elements are floats
+    if isinstance(embedding, list):
+        try:
+            embedding = [float(x) for x in embedding]
+        except (ValueError, TypeError):
+            print(f"Warning: Could not convert all embedding elements to float")
+            return None
+    else:
+        print(f"Warning: Embedding is not a list or string: {type(embedding)}")
+        return None
+        
+    return embedding
+
 def load_embeddings_from_huggingface(dataset_name, batch_size=1000, model_path="model.pth", 
                                     embedding_column="embedding", text_column="text",
                                     config_name=None, split="train", streaming=False,
@@ -129,15 +172,21 @@ def load_embeddings_from_huggingface(dataset_name, batch_size=1000, model_path="
             dataset_iter = iter(dataset)
             first_item = next(dataset_iter)
             if embedding_column in first_item:
-                embedding_dim = len(first_item[embedding_column])
-                print(f"Detected embedding dimension: {embedding_dim}")
+                # Convert embedding to float list if it's a string
+                embedding = ensure_embedding_is_float_list(first_item[embedding_column])
+                if embedding is not None:
+                    embedding_dim = len(embedding)
+                    print(f"Detected embedding dimension: {embedding_dim}")
         else:
             # For non-streaming datasets, we can access the first item directly
             if len(dataset) > 0:
                 first_item = dataset[0]
                 if embedding_column in first_item:
-                    embedding_dim = len(first_item[embedding_column])
-                    print(f"Detected embedding dimension: {embedding_dim}")
+                    # Convert embedding to float list if it's a string
+                    embedding = ensure_embedding_is_float_list(first_item[embedding_column])
+                    if embedding is not None:
+                        embedding_dim = len(embedding)
+                        print(f"Detected embedding dimension: {embedding_dim}")
         
         # If the model input dimension doesn't match the embedding dimension, adapt
         if input_dim is not None and embedding_dim is not None and input_dim != embedding_dim:
@@ -162,7 +211,11 @@ def load_embeddings_from_huggingface(dataset_name, batch_size=1000, model_path="
                     print(f"Warning: '{embedding_column}' not found in item, skipping")
                     continue
                 
-                embedding = item[embedding_column]
+                # Convert embedding to float list if it's a string
+                embedding = ensure_embedding_is_float_list(item[embedding_column])
+                if embedding is None:
+                    print(f"Warning: Could not process embedding, skipping")
+                    continue
                 
                 # Extract the text (if available)
                 text = ""
@@ -243,9 +296,12 @@ def load_embeddings_from_jsonl(file_path, batch_size=1000, model_path="model.pth
             for line in f:
                 data = json.loads(line)
                 if 'embedding' in data:
-                    embedding_dim = len(data['embedding'])
-                    print(f"Detected embedding dimension in file: {embedding_dim}")
-                    break
+                    # Convert embedding to float list if it's a string
+                    embedding = ensure_embedding_is_float_list(data['embedding'])
+                    if embedding is not None:
+                        embedding_dim = len(embedding)
+                        print(f"Detected embedding dimension in file: {embedding_dim}")
+                        break
     except Exception as e:
         print(f"Error detecting embedding dimension: {e}")
     
@@ -277,7 +333,11 @@ def load_embeddings_from_jsonl(file_path, batch_size=1000, model_path="model.pth
                 else:
                     text = data['text']
                 
-                embedding = data['embedding']
+                # Convert embedding to float list if it's a string
+                embedding = ensure_embedding_is_float_list(data['embedding'])
+                if embedding is None:
+                    print(f"Warning: Could not process embedding, skipping")
+                    continue
                 
                 # Add to batch
                 batch_embeddings.append(embedding)

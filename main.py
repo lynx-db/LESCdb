@@ -401,10 +401,11 @@ class Database:
     if os.path.exists(evals_path):
       evals_db: BTreeDatabase[str, list[float]] = BTreeDatabase[str, list[float]](path=f"{self.path}_evals")
       self.evaluations = []
+      print(evals_db.keys())
       
       # Find the maximum index to determine the number of evaluations
       max_index = -1
-      for i in range(100000000):  # Reasonable upper bound
+      for i in range(1000000):  # Reasonable upper bound
         if evals_db.search(str(i)) is None:
           max_index = i - 1
           break
