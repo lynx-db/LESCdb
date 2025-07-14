@@ -180,7 +180,6 @@ def load_embeddings_from_huggingface(dataset_name, batch_size=1000, model_path="
                     process_batch(db, batch_embeddings, batch_texts)
                     batch_count += 1
                     total_count += len(batch_embeddings)
-                    print(f"Processed batch {batch_count}, total items: {total_count}")
                     batch_embeddings = []
                     batch_texts = []
                     
