@@ -172,6 +172,8 @@ def load_embeddings_from_huggingface(dataset_name, batch_size=1000, model_path="
                     print(f"Warning: '{text_column}' not found in item, using empty string")
                 
                 # Add to batch
+                if isinstance(embedding, str):
+                  embedding = eval(embedding)
                 batch_embeddings.append(embedding)
                 batch_texts.append(text)
                 
