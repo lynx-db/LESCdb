@@ -14,7 +14,7 @@ scikit-learn = ">=1.7.0,<2"
 datasets = ">=3.6.0,<4"
 
 [pypi-dependencies]
-cohere = "~=5.16.1"
+cohere = ">=5.16.1, <6"
 
 [target.linux-64.dependencies]
 faiss-gpu = ">=1.9.0,<2"
