@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import Any, Generic, List, Optional, Tuple, TypeVar, final
+from typing import Any, Generic, Optional, TypeVar, final
 import pickle
 import os
 
@@ -11,9 +11,9 @@ class BTreeNode(Generic[K, V]):
     def __init__(self, leaf: bool = False, order: int = 5):
         self.leaf = leaf
         self.order = order
-        self.keys: List[K] = []
-        self.values: List[V] = []
-        self.children: List[BTreeNode[K, V]] = []
+        self.keys: list[K] = []
+        self.values: list[V] = []
+        self.children: list[BTreeNode[K, V]] = []
 
     def is_full(self) -> bool:
         return len(self.keys) >= 2 * self.order - 1

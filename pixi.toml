@@ -9,9 +9,11 @@ version = "0.1.0"
 
 [dependencies]
 msgpack-python = ">=1.1.1,<2"
-openai = ">=1.95.1,<2"
+openai = ">=1.97.0,<2"
 scikit-learn = ">=1.7.0,<2"
 datasets = ">=3.6.0,<4"
+lmdbm = ">=0.0.6,<0.0.7"
+typer = ">=0.16.0,<0.17"
 
 [pypi-dependencies]
 cohere = ">=5.16.1, <6"

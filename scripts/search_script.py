@@ -5,7 +5,7 @@ import argparse
 import torch
 import numpy as np
 import cohere
-from main import Database
+from lescdb.database import Database
 from distance_preservation_encoder.model import DPEncoder
 from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
 import os

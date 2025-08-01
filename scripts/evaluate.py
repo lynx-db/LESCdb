@@ -2,7 +2,7 @@
 import argparse
 import time
 import numpy as np
-from main import Database
+from lescdb.database import Database
 
 def generate_random_vectors(count: int, dim: int = 128) -> list[list[float]]:
     """Generate random vectors for testing."""

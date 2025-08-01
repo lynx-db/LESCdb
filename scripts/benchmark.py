@@ -19,7 +19,7 @@ def run_benchmark(vector_count: int, query_count: int, use_gpu: bool) -> None:
     
     # Run the evaluation script
     cmd = [
-        "python", "evaluate.py",
+        "python", "scripts/evaluate.py",
         "--vector-count", str(vector_count),
         "--query-count", str(query_count),
         "--path", path

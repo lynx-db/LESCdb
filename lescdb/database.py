@@ -1,25 +1,30 @@
-from typing import final, Dict, Tuple, Optional, Any, Union
-
-from numpy import float32
-from torch import Tensor
-from faiss import IndexFlatL2, write_index, read_index, GpuIndexFlatL2, StandardGpuResources, index_cpu_to_gpu, index_gpu_to_cpu # pyright: ignore[reportMissingTypeStubs, reportUnknownVariableType]
+# Standard library imports
 import os
+
+# Typing imports
+from typing import Any, final
+
+# Third-party imports
 import torch
-import torch.nn as nn
-from distance_preservation_encoder.model import DPEncoder
+from torch import Tensor
+from numpy import float32
+from faiss import IndexFlatL2, write_index, read_index, GpuIndexFlatL2, StandardGpuResources, index_cpu_to_gpu, index_gpu_to_cpu  # pyright: ignore[reportMissingTypeStubs, reportUnknownVariableType]
 from distance_preservation_encoder.loss import DPLoss
-from btree_db import BTreeDatabase
+from distance_preservation_encoder.model import DPEncoder
+
+# Local application imports
+from lescdb.btree_db import BTreeDatabase
 
 # Define a type for our database values which can be either a list of floats or a dict with embedding and text
-DBValue = Union[list[float], Dict[str, Any]]
+DBValue = list[float] | dict[str, Any]
 
 @final
 class Database:
   def __init__(self, 
                path: str = "LESCdb", 
                use_gpu: bool = True, 
-               input_dim: Optional[int] = None, 
-               latent_dim: Optional[int] = None,
+               input_dim: int | None = None, 
+               latent_dim: int | None = None,
                hidden_dims: list[int] = [768]):
     self.path = path
     # Replace LMDB with BTreeDatabase

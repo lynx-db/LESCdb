@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from main import Database
+from lescdb.database import Database
 import numpy as np
 import os
 import shutil
